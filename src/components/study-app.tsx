@@ -27,7 +27,7 @@ import {
   type ChapterId,
   type Question,
 } from "@/data/questions";
-import { useProgress, type Lang } from "@/lib/progress-store";
+import { useProgress, pointsFor, rankOf, type Lang } from "@/lib/progress-store";
 import { playCue } from "@/lib/sounds";
 
 type View =
@@ -70,7 +70,12 @@ function Home({ onOpen }: { onOpen: (view: View) => void }) {
   const stats = useProgress((s) => s.stats);
   const wrongIds = useProgress((s) => s.wrongIds);
   const reset = useProgress((s) => s.reset);
+  const xp = useProgress((s) => s.xp);
+  const bestStreak = useProgress((s) => s.bestStreak);
   const [confirmReset, setConfirmReset] = useState(false);
+  const rank = rankOf(xp);
+  const rankSpan = rank.next ? rank.next.xp - rank.current.xp : 1;
+  const rankInto = rank.next ? xp - rank.current.xp : 1;
 
   const seen = QUESTIONS.filter((q) => {
     const stat = stats[q.id];
@@ -105,8 +110,24 @@ function Home({ onOpen }: { onOpen: (view: View) => void }) {
             <span className="text-lg text-muted"> / {QUESTIONS.length}</span>
           </p>
           <p className="mt-2 text-sm text-gold">{attempts ? `正確率 ${accuracy}%` : "尚未作答"}</p>
-          <p className="mt-1 text-xs text-muted">正確率按每次作答計算，不是只計最後一次。</p>
+          <p className="mt-1 text-xs text-muted">最高連對 {bestStreak}</p>
         </div>
+      </section>
+
+      <section className="panel rounded-lg border border-line px-4 py-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="font-serif text-xl text-gold">{rank.current.name}</p>
+          <p className="text-sm text-muted">{xp} 分</p>
+        </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-ink-soft">
+          <div
+            className="h-full bg-gold"
+            style={{ width: `${Math.round((rankInto / rankSpan) * 100)}%` }}
+          />
+        </div>
+        <p className="mt-2 text-xs text-muted">
+          {rank.next ? `再 ${rank.next.xp - xp} 分升到${rank.next.name}` : "已到最高等級"}
+        </p>
       </section>
 
       <button
@@ -130,6 +151,7 @@ function Home({ onOpen }: { onOpen: (view: View) => void }) {
             const stat = stats[q.id];
             return stat && stat.correct + stat.wrong > 0;
           }).length;
+          const stars = chapterStars(list, stats);
           const width = list.length ? Math.round((done / list.length) * 100) : 0;
           return (
             <button
@@ -158,6 +180,7 @@ function Home({ onOpen }: { onOpen: (view: View) => void }) {
                     ) : null}
                   </span>
                   <span className="mt-1 block text-xs text-muted">{chapter.note}</span>
+                  <Stars count={stars} />
                 </span>
                 <span className="text-sm text-muted">
                   {done}/{list.length}
@@ -262,7 +285,12 @@ function Practice({
   const [picked, setPicked] = useState<number[]>([]);
   const [revealed, setRevealed] = useState(false);
   const [round, setRound] = useState<{ id: string; ok: boolean }[]>([]);
+  const [streak, setStreak] = useState(0);
+  const [roundXp, setRoundXp] = useState(0);
+  const [roundBest, setRoundBest] = useState(0);
+  const [lastGain, setLastGain] = useState(0);
   const record = useProgress((s) => s.record);
+  const addScore = useProgress((s) => s.addScore);
   const lang = useProgress((s) => s.lang);
   const soundOn = useProgress((s) => s.soundOn);
 
@@ -284,7 +312,8 @@ function Practice({
             {right}
             <span className="text-2xl text-muted">/{questions.length}</span>
           </p>
-          <p className="mt-3 text-sm text-muted">錯題已放進錯題本，再答對會移走。</p>
+          <p className="mt-3 text-sm text-gold">+{roundXp} 分 · 最長連對 {roundBest}</p>
+          <p className="mt-1 text-sm text-muted">錯題已放進錯題本，再答對會移走。</p>
         </section>
         <button
           type="button"
@@ -313,8 +342,15 @@ function Practice({
   function submit() {
     if (picked.length !== need) return;
     const ok = sameSet(picked, question.answer);
+    const nextStreak = ok ? streak + 1 : 0;
+    const gained = ok ? pointsFor(nextStreak) : 0;
     record(question.id, ok);
+    addScore(gained, nextStreak);
     playCue(ok ? "correct" : "wrong", soundOn);
+    setStreak(nextStreak);
+    setLastGain(gained);
+    setRoundXp((value) => value + gained);
+    setRoundBest((value) => Math.max(value, nextStreak));
     setRound((prev) => [...prev, { id: question.id, ok }]);
     setRevealed(true);
   }
@@ -333,6 +369,7 @@ function Practice({
       onExit={onExit}
       lang={lang}
     >
+      {streak > 1 ? <p className="score-pop text-sm font-medium text-gold">連對 {streak}</p> : null}
       <QuestionCard
         question={question}
         lang={lang}
@@ -341,7 +378,11 @@ function Practice({
         onToggle={toggle}
       />
       {revealed ? (
-        <Explanation question={question} ok={sameSet(picked, question.answer)} />
+        <Explanation
+          question={question}
+          ok={sameSet(picked, question.answer)}
+          note={lastGain > 0 ? `+${lastGain} 分` : "連對中斷"}
+        />
       ) : null}
       <div className="sticky bottom-0 -mx-5 border-t border-line bg-paper/90 px-5 py-3 backdrop-blur">
         {revealed ? (
@@ -373,6 +414,7 @@ function MockExam({ onExit }: { onExit: () => void }) {
   const [finalScore, setFinalScore] = useState(0);
   const record = useProgress((s) => s.record);
   const addMock = useProgress((s) => s.addMock);
+  const addScore = useProgress((s) => s.addScore);
   const lang = useProgress((s) => s.lang);
   const lock = useRef(false);
   const answersRef = useRef(answers);
@@ -398,7 +440,9 @@ function MockExam({ onExit }: { onExit: () => void }) {
       if (choice.length > 0) record(item.id, ok);
     });
     const passed = score >= PASS_MARK;
+    const bonus = score * 8 + (passed ? 40 : 0);
     playCue(passed ? "pass" : "fail", useProgress.getState().soundOn);
+    addScore(bonus, 0);
     addMock({
       at: Date.now(),
       score,
@@ -408,7 +452,7 @@ function MockExam({ onExit }: { onExit: () => void }) {
     setAnswers(finalAnswers);
     setFinalScore(score);
     setDone(true);
-  }, [addMock, paper, record]);
+  }, [addMock, addScore, paper, record]);
 
   useEffect(() => {
     if (done) return;
@@ -447,6 +491,10 @@ function MockExam({ onExit }: { onExit: () => void }) {
             <span className="text-2xl text-muted">/{paper.length}</span>
           </p>
           <p className="mt-3 text-sm leading-6 text-muted">正式測驗 24 題要對 18 題（75%）。</p>
+          <p className="mt-2 text-sm text-gold">
+            +{finalScore * 8 + ((finalScore >= PASS_MARK) ? 40 : 0)} 分
+            {finalScore >= PASS_MARK ? " · 合格獎勵" : ""}
+          </p>
         </section>
         <ol className="flex flex-col gap-3">
           {paper.map((item, itemIndex) => {
@@ -681,10 +729,13 @@ function QuestionCard({
   );
 }
 
-function Explanation({ question, ok }: { question: Question; ok: boolean }) {
+function Explanation({ question, ok, note }: { question: Question; ok: boolean; note?: string }) {
   return (
-    <section className={`rounded-lg border-l-4 px-3 py-3 ${ok ? "border-ok bg-ok-soft" : "border-stamp bg-stamp-soft"}`}>
-      <p className={`text-sm font-medium ${ok ? "text-ok" : "text-stamp"}`}>{ok ? "正確" : "再記一次"}</p>
+    <section className={`score-pop rounded-lg border-l-4 px-3 py-3 ${ok ? "border-ok bg-ok-soft" : "border-stamp bg-stamp-soft"}`}>
+      <p className={`text-sm font-medium ${ok ? "text-ok" : "text-stamp"}`}>
+        {ok ? "正確" : "再記一次"}
+        {note ? <span className="ml-2 text-gold">{note}</span> : null}
+      </p>
       <p className="mt-1 text-sm leading-6">{question.explain}</p>
       <ul className="mt-2 flex flex-wrap gap-2">
         {question.keys.map((key) => (
@@ -750,6 +801,38 @@ function QuizFrame({
       </div>
       {children}
     </main>
+  );
+}
+
+function chapterStars(list: Question[], stats: Record<string, { correct: number; wrong: number }>) {
+  let seen = 0;
+  let correct = 0;
+  let attempts = 0;
+  list.forEach((question) => {
+    const stat = stats[question.id];
+    if (!stat) return;
+    const count = stat.correct + stat.wrong;
+    if (count > 0) seen += 1;
+    correct += stat.correct;
+    attempts += count;
+  });
+  const cover = list.length ? seen / list.length : 0;
+  const accuracy = attempts ? correct / attempts : 0;
+  if (cover >= 0.8 && accuracy >= 0.75 && attempts >= 8) return 3;
+  if (cover >= 0.45) return 2;
+  if (seen >= 3) return 1;
+  return 0;
+}
+
+function Stars({ count }: { count: number }) {
+  return (
+    <span className="mt-1 block text-sm tracking-widest" aria-label={`${count} 星`}>
+      {[0, 1, 2].map((index) => (
+        <span key={index} className={index < count ? "text-gold" : "text-line"}>
+          {index < count ? "★" : "☆"}
+        </span>
+      ))}
+    </span>
   );
 }
 

@@ -1,3 +1,6 @@
+import { EXTRA_A } from "./bank-x1";
+import { EXTRA_B } from "./bank-x2";
+import { EXTRA_C } from "./bank-x3";
 import { HISTORY } from "./bank-history";
 import { MORE } from "./bank-more";
 import { REST } from "./bank-rest";
@@ -6,7 +9,7 @@ import { CHAPTERS, type ChapterId, type Question } from "./types";
 export { CHAPTERS };
 export type { ChapterId, Question };
 
-export const QUESTIONS: Question[] = [...REST, ...HISTORY, ...MORE];
+export const QUESTIONS: Question[] = [...REST, ...HISTORY, ...MORE, ...EXTRA_A, ...EXTRA_B, ...EXTRA_C];
 
 const byId = new Map(QUESTIONS.map((q) => [q.id, q]));
 

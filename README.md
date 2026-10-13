@@ -1,5 +1,7 @@
 # 英國生活備考
 
+完成品：https://glojournal-cmyk.github.io/life-in-uk-prep/
+
 Life in the UK 測驗練習。繁體中文記重點，人名地名附英文。題目內置，進度存在瀏覽器。
 
 - 按章練習（歷史最重）

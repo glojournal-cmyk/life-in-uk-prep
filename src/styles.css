@@ -4,17 +4,18 @@
 @theme {
   --font-sans: "Noto Sans TC", "Segoe UI", sans-serif;
   --font-serif: "Noto Serif TC", "Iowan Old Style", serif;
-  --color-paper: #f3efe6;
-  --color-card: #fffdf8;
-  --color-ink: #1a2332;
-  --color-muted: #5e6874;
-  --color-line: #e2d9c8;
-  --color-ink-soft: #e7ebf1;
-  --color-stamp: #8f2d2d;
-  --color-stamp-soft: #f8ebe8;
-  --color-ok: #1f6b4a;
-  --color-ok-soft: #e7f3ec;
-  --radius-lg: 0.75rem;
+  --color-paper: #10151d;
+  --color-card: #1b2433;
+  --color-ink: #f6f1e7;
+  --color-muted: #9aa6b5;
+  --color-line: #314056;
+  --color-ink-soft: #263246;
+  --color-stamp: #ff6b57;
+  --color-stamp-soft: #3a2426;
+  --color-ok: #3dce8e;
+  --color-ok-soft: #143028;
+  --color-gold: #f0c36a;
+  --radius-lg: 1rem;
 }
 
 @layer base {
@@ -37,4 +38,18 @@
       animation: none !important;
     }
   }
+}
+
+.app-shell {
+  background:
+    radial-gradient(880px 420px at 0% -8%, rgb(240 195 106 / 0.18), transparent 56%),
+    radial-gradient(680px 360px at 100% 0%, rgb(255 107 87 / 0.16), transparent 52%),
+    var(--color-paper);
+}
+
+.panel {
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.045), transparent 42%),
+    var(--color-card);
+  box-shadow: 0 14px 36px rgb(0 0 0 / 0.28);
 }

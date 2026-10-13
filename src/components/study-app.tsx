@@ -9,7 +9,6 @@ import {
 } from "recharts";
 import {
   ArrowLeft,
-  BookOpen,
   ChartColumn,
   Clock3,
   Volume2,
@@ -45,7 +44,7 @@ export function StudyApp() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-paper text-ink">
+    <div className="app-shell min-h-screen bg-paper text-ink">
       {view.name === "home" ? <Home onOpen={setView} /> : null}
       {view.name === "practice" ? (
         <Practice
@@ -82,9 +81,9 @@ function Home({ onOpen }: { onOpen: (view: View) => void }) {
   const accuracy = attempts ? Math.round((correct / attempts) * 100) : 0;
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-5 py-6">
+    <main className="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-6">
       <header className="flex flex-col gap-3">
-        <p className="font-serif text-xs tracking-widest text-stamp">LIFE IN THE UK</p>
+        <p className="text-xs font-medium tracking-[0.22em] text-gold">LIFE IN THE UK</p>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-serif text-4xl leading-tight">英國生活備考</h1>
           <div className="flex items-center gap-2">
@@ -97,40 +96,41 @@ function Home({ onOpen }: { onOpen: (view: View) => void }) {
         </p>
       </header>
 
-      <section className="rounded-lg border border-line bg-card p-4">
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="text-sm text-muted">已做 {seen} / {QUESTIONS.length} 題</p>
-          <p className="font-serif text-2xl">{attempts ? `${accuracy}%` : "—"}</p>
+      <section className="panel flex items-center gap-4 rounded-lg border border-line p-4">
+        <Ring value={Math.round((seen / QUESTIONS.length) * 100)} />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs tracking-widest text-muted">進度</p>
+          <p className="mt-1 font-serif text-3xl leading-none">
+            {seen}
+            <span className="text-lg text-muted"> / {QUESTIONS.length}</span>
+          </p>
+          <p className="mt-2 text-sm text-gold">{attempts ? `正確率 ${accuracy}%` : "尚未作答"}</p>
+          <p className="mt-1 text-xs text-muted">正確率按每次作答計算，不是只計最後一次。</p>
         </div>
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-ink-soft">
-          <div
-            className="h-full bg-stamp"
-            style={{ width: `${Math.round((seen / QUESTIONS.length) * 100)}%` }}
-          />
-        </div>
-        <p className="mt-2 text-xs text-muted">正確率按每次作答計算，不是只計最後一次。</p>
       </section>
 
       <button
         type="button"
         onClick={() => onOpen({ name: "mock" })}
-        className="flex min-h-11 items-center justify-between rounded-lg bg-ink px-4 py-4 text-left text-paper"
+        className="flex min-h-11 items-center justify-between rounded-lg bg-gradient-to-br from-gold to-stamp px-4 py-4 text-left text-paper shadow-lg"
       >
         <span>
-          <span className="block font-serif text-xl">模擬考試</span>
-          <span className="mt-1 block text-sm text-line">24 題 · 45 分鐘 · 18 題合格</span>
+          <span className="text-xs font-medium tracking-widest">挑戰關</span>
+          <span className="mt-1 block font-serif text-2xl">模擬考試</span>
+          <span className="mt-1 block text-sm">24 題 · 45 分鐘 · 18 題合格</span>
         </span>
-        <Clock3 aria-hidden="true" className="size-5" />
+        <Clock3 aria-hidden="true" className="size-6" />
       </button>
 
-      <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-medium text-muted">按章練習</h2>
+      <section className="flex flex-col gap-3">
+        <h2 className="text-xs font-medium tracking-widest text-muted">選擇關卡</h2>
         {CHAPTERS.map((chapter) => {
           const list = questionsIn(chapter.id);
           const done = list.filter((q) => {
             const stat = stats[q.id];
             return stat && stat.correct + stat.wrong > 0;
           }).length;
+          const width = list.length ? Math.round((done / list.length) * 100) : 0;
           return (
             <button
               key={chapter.id}
@@ -142,21 +142,30 @@ function Home({ onOpen }: { onOpen: (view: View) => void }) {
                   ids: shuffle(list).map((q) => q.id),
                 })
               }
-              className="flex min-h-11 items-center gap-3 rounded-lg border border-line bg-card px-3 py-3 text-left"
+              className="panel flex min-h-11 flex-col gap-3 rounded-lg border border-line px-4 py-3 text-left"
             >
-              <span className="w-8 font-serif text-2xl text-stamp">{chapter.id}</span>
-              <span className="min-w-0 flex-1">
-                <span className="block font-medium">
-                  {chapter.zh}
-                  {chapter.id === 3 ? (
-                    <span className="ml-2 text-xs font-medium text-stamp">最常考</span>
-                  ) : null}
+              <span className="flex items-center gap-3">
+                <span className="flex size-11 items-center justify-center rounded-lg bg-ink-soft font-serif text-lg text-gold">
+                  {String(chapter.id).padStart(2, "0")}
                 </span>
-                <span className="mt-1 block text-xs text-muted">
-                  {chapter.note} · {done}/{list.length}
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2">
+                    <span className="font-medium">{chapter.zh}</span>
+                    {chapter.id === 3 ? (
+                      <span className="rounded-full bg-stamp-soft px-2 py-0.5 text-xs font-medium text-stamp">
+                        最常考
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="mt-1 block text-xs text-muted">{chapter.note}</span>
+                </span>
+                <span className="text-sm text-muted">
+                  {done}/{list.length}
                 </span>
               </span>
-              <BookOpen aria-hidden="true" className="size-4 text-muted" />
+              <span className="h-1.5 overflow-hidden rounded-full bg-ink-soft">
+                <span className="block h-full bg-gold" style={{ width: `${width}%` }} />
+              </span>
             </button>
           );
         })}
@@ -172,21 +181,21 @@ function Home({ onOpen }: { onOpen: (view: View) => void }) {
               ids: shuffle(wrongIds),
             })
           }
-          className="min-h-11 rounded-lg border border-line bg-card px-3 py-3 text-left"
+          className="panel min-h-11 rounded-lg border border-line px-3 py-3 text-left"
         >
-          <span className="block text-sm text-muted">錯題本</span>
-          <span className="mt-1 block font-serif text-2xl">{wrongIds.length}</span>
+          <span className="block text-xs tracking-widest text-muted">錯題本</span>
+          <span className="mt-1 block font-serif text-3xl text-stamp">{wrongIds.length}</span>
         </button>
         <button
           type="button"
           onClick={() => onOpen({ name: "weak" })}
-          className="min-h-11 rounded-lg border border-line bg-card px-3 py-3 text-left"
+          className="panel min-h-11 rounded-lg border border-line px-3 py-3 text-left"
         >
-          <span className="flex items-center gap-2 text-sm text-muted">
+          <span className="flex items-center gap-2 text-xs tracking-widest text-muted">
             <ChartColumn aria-hidden="true" className="size-4" />
-            弱點分析
+            弱點
           </span>
-          <span className="mt-1 block font-serif text-2xl">按章</span>
+          <span className="mt-1 block font-serif text-3xl">分析</span>
         </button>
       </section>
 
@@ -199,7 +208,7 @@ function Home({ onOpen }: { onOpen: (view: View) => void }) {
             ids: shuffle(QUESTIONS).slice(0, 20).map((q) => q.id),
           })
         }
-        className="min-h-11 rounded-lg border border-line px-4 py-3 text-left text-sm"
+        className="min-h-11 rounded-lg border border-line bg-ink-soft px-4 py-3 text-left text-sm"
       >
         隨機 20 題，五章都有
       </button>
@@ -269,10 +278,14 @@ function Practice({
     const right = round.filter((item) => item.ok).length;
     return (
       <Screen title={title} onExit={onExit}>
-        <p className="font-serif text-4xl">
-          {right}/{questions.length}
-        </p>
-        <p className="text-sm text-muted">這一輪答對的題數。錯題已放進錯題本，再答對會移走。</p>
+        <section className="panel rounded-lg border border-line px-4 py-6 text-center">
+          <p className="text-xs tracking-widest text-gold">本關成績</p>
+          <p className="mt-2 font-serif text-5xl">
+            {right}
+            <span className="text-2xl text-muted">/{questions.length}</span>
+          </p>
+          <p className="mt-3 text-sm text-muted">錯題已放進錯題本，再答對會移走。</p>
+        </section>
         <button
           type="button"
           onClick={onExit}
@@ -316,6 +329,7 @@ function Practice({
     <QuizFrame
       title={title}
       progress={`${index + 1} / ${questions.length}`}
+      ratio={(index + 1) / questions.length}
       onExit={onExit}
       lang={lang}
     >
@@ -329,7 +343,7 @@ function Practice({
       {revealed ? (
         <Explanation question={question} ok={sameSet(picked, question.answer)} />
       ) : null}
-      <div className="sticky bottom-0 bg-paper py-3">
+      <div className="sticky bottom-0 -mx-5 border-t border-line bg-paper/90 px-5 py-3 backdrop-blur">
         {revealed ? (
           <button type="button" onClick={next} className="min-h-11 w-full rounded-lg bg-ink text-sm text-paper">
             {index + 1 === questions.length ? "看這一輪成績" : "下一題"}
@@ -424,20 +438,21 @@ function MockExam({ onExit }: { onExit: () => void }) {
     const passed = finalScore >= PASS_MARK;
     return (
       <Screen title="模擬考試" onExit={onExit}>
-        <p className={`font-serif text-sm tracking-widest ${passed ? "text-ok" : "text-stamp"}`}>
-          {passed ? "合格" : "未合格"}
-        </p>
-        <p className="font-serif text-4xl">
-          {finalScore}/{paper.length}
-        </p>
-        <p className="text-sm leading-6 text-muted">
-          正式測驗 24 題要對 18 題（75%）。下面可以逐題看中文重點。
-        </p>
+        <section className={`panel rounded-lg border px-4 py-6 text-center ${passed ? "border-ok" : "border-stamp"}`}>
+          <p className={`text-xs tracking-widest ${passed ? "text-ok" : "text-stamp"}`}>
+            {passed ? "合格" : "未合格"}
+          </p>
+          <p className="mt-2 font-serif text-5xl">
+            {finalScore}
+            <span className="text-2xl text-muted">/{paper.length}</span>
+          </p>
+          <p className="mt-3 text-sm leading-6 text-muted">正式測驗 24 題要對 18 題（75%）。</p>
+        </section>
         <ol className="flex flex-col gap-3">
           {paper.map((item, itemIndex) => {
             const ok = sameSet(answers[item.id] ?? [], item.answer);
             return (
-              <li key={item.id} className="rounded-lg border border-line bg-card p-3">
+              <li key={item.id} className="panel rounded-lg border border-line p-3">
                 <p className={`text-xs font-medium ${ok ? "text-ok" : "text-stamp"}`}>
                   {itemIndex + 1}. {ok ? "正確" : "錯誤"}
                 </p>
@@ -457,9 +472,16 @@ function MockExam({ onExit }: { onExit: () => void }) {
     <QuizFrame
       title="模擬考試"
       progress={`${index + 1} / ${paper.length}`}
+      ratio={(index + 1) / paper.length}
       onExit={onExit}
       lang={lang}
-      extra={<span className={seconds < 60 ? "text-stamp" : "text-muted"}>{clock(seconds)}</span>}
+      extra={
+        <span
+          className={`rounded-full px-2 py-1 font-serif ${seconds < 60 ? "bg-stamp-soft text-stamp" : "bg-ink-soft text-gold"}`}
+        >
+          {clock(seconds)}
+        </span>
+      }
     >
       <p className="text-xs text-muted">模擬卷交卷後才看解釋。可前後翻題，時間到會自動交卷。</p>
       <QuestionCard
@@ -476,7 +498,7 @@ function MockExam({ onExit }: { onExit: () => void }) {
           });
         }}
       />
-      <div className="sticky bottom-0 flex gap-2 bg-paper py-3">
+      <div className="sticky bottom-0 -mx-5 flex gap-2 border-t border-line bg-paper/90 px-5 py-3 backdrop-blur">
         <button
           type="button"
           disabled={index === 0}
@@ -546,7 +568,7 @@ function Weakness({
               formatter={(value) => [`${value}%`, "正確率"]}
               cursor={{ fill: "var(--color-ink-soft)" }}
             />
-            <Bar dataKey="accuracy" fill="var(--color-stamp)" radius={4} />
+            <Bar dataKey="accuracy" fill="var(--color-gold)" radius={6} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -607,13 +629,14 @@ function QuestionCard({
   onToggle: (index: number) => void;
 }) {
   const need = question.answer.length;
+  const letters = "ABCDEFGH";
   return (
-    <article className="flex flex-col gap-3">
-      <p className="text-xs text-muted">
+    <article className="panel flex flex-col gap-4 rounded-lg border border-line p-4">
+      <p className="text-xs tracking-wide text-gold">
         {CHAPTERS.find((chapter) => chapter.id === question.chapter)?.zh} · {question.subtopic}
         {need > 1 ? ` · 選 ${need} 項` : ""}
       </p>
-      <h2 className="font-serif text-xl leading-8">
+      <h2 className="font-serif text-2xl leading-9">
         {lang === "en" ? question.en : question.zh}
       </h2>
       {lang === "both" ? <p className="text-sm leading-6 text-muted">{question.en}</p> : null}
@@ -621,21 +644,34 @@ function QuestionCard({
         {question.options.map((option, optionIndex) => {
           const selected = picked.includes(optionIndex);
           const correct = question.answer.includes(optionIndex);
-          let tone = "border-line bg-card";
-          if (revealed && correct) tone = "border-ok bg-ok-soft";
-          else if (revealed && selected) tone = "border-stamp bg-stamp-soft";
-          else if (selected) tone = "border-ink bg-ink-soft";
+          let tone = "border-line bg-ink-soft";
+          let badge = "bg-paper text-muted";
+          if (revealed && correct) {
+            tone = "border-ok bg-ok-soft";
+            badge = "bg-ok text-paper";
+          } else if (revealed && selected) {
+            tone = "border-stamp bg-stamp-soft";
+            badge = "bg-stamp text-paper";
+          } else if (selected) {
+            tone = "border-gold bg-ink-soft";
+            badge = "bg-gold text-paper";
+          }
           return (
             <li key={option.en}>
               <button
                 type="button"
                 onClick={() => onToggle(optionIndex)}
-                className={`min-h-11 w-full rounded-lg border px-3 py-3 text-left text-sm leading-6 ${tone}`}
+                className={`flex min-h-11 w-full items-start gap-3 rounded-lg border px-3 py-3 text-left text-sm leading-6 ${tone}`}
               >
-                <span className="block">{lang === "en" ? option.en : option.zh}</span>
-                {lang !== "en" && option.en !== option.zh ? (
-                  <span className="mt-1 block text-xs text-muted">{option.en}</span>
-                ) : null}
+                <span className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md font-serif text-xs ${badge}`}>
+                  {letters[optionIndex]}
+                </span>
+                <span className="min-w-0">
+                  <span className="block">{lang === "en" ? option.en : option.zh}</span>
+                  {lang !== "en" && option.en !== option.zh ? (
+                    <span className="mt-1 block text-xs text-muted">{option.en}</span>
+                  ) : null}
+                </span>
               </button>
             </li>
           );
@@ -647,7 +683,7 @@ function QuestionCard({
 
 function Explanation({ question, ok }: { question: Question; ok: boolean }) {
   return (
-    <section className={`rounded-lg px-3 py-3 ${ok ? "bg-ok-soft" : "bg-stamp-soft"}`}>
+    <section className={`rounded-lg border-l-4 px-3 py-3 ${ok ? "border-ok bg-ok-soft" : "border-stamp bg-stamp-soft"}`}>
       <p className={`text-sm font-medium ${ok ? "text-ok" : "text-stamp"}`}>{ok ? "正確" : "再記一次"}</p>
       <p className="mt-1 text-sm leading-6">{question.explain}</p>
       <ul className="mt-2 flex flex-wrap gap-2">
@@ -681,6 +717,7 @@ function Screen({
 function QuizFrame({
   title,
   progress,
+  ratio = 0,
   onExit,
   lang,
   extra,
@@ -688,6 +725,7 @@ function QuizFrame({
 }: {
   title: string;
   progress: string;
+  ratio?: number;
   onExit: () => void;
   lang: Lang;
   extra?: ReactNode;
@@ -700,8 +738,11 @@ function QuizFrame({
         <TopBar title={title} onExit={onExit} inline />
         <div className="flex items-center gap-3 text-sm">
           {extra}
-          <span className="text-muted">{progress}</span>
+          <span className="font-serif text-gold">{progress}</span>
         </div>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-ink-soft">
+        <div className="h-full bg-gold" style={{ width: `${ratio > 0 ? Math.max(3, Math.round(ratio * 100)) : 0}%` }} />
       </div>
       <div className="flex items-center justify-between gap-3">
         <LangSwitch lang={lang} onChange={setLang} />
@@ -709,6 +750,33 @@ function QuizFrame({
       </div>
       {children}
     </main>
+  );
+}
+
+function Ring({ value }: { value: number }) {
+  const radius = 28;
+  const circ = 2 * Math.PI * radius;
+  const offset = circ - (Math.min(100, Math.max(0, value)) / 100) * circ;
+  return (
+    <svg width="76" height="76" viewBox="0 0 76 76" aria-hidden="true" className="shrink-0">
+      <circle cx="38" cy="38" r={radius} fill="none" stroke="currentColor" className="text-line" strokeWidth="6" />
+      <circle
+        cx="38"
+        cy="38"
+        r={radius}
+        fill="none"
+        stroke="currentColor"
+        className="text-gold"
+        strokeWidth="6"
+        strokeLinecap="round"
+        strokeDasharray={circ}
+        strokeDashoffset={offset}
+        transform="rotate(-90 38 38)"
+      />
+      <text x="38" y="42" textAnchor="middle" fill="currentColor" className="text-ink" fontSize="13">
+        {value}%
+      </text>
+    </svg>
   );
 }
 

@@ -294,6 +294,10 @@ function Practice({
   const lang = useProgress((s) => s.lang);
   const soundOn = useProgress((s) => s.soundOn);
 
+  useEffect(() => {
+    playCue("start", useProgress.getState().soundOn);
+  }, []);
+
   if (questions.length === 0) {
     return (
       <Screen title={title} onExit={onExit}>
@@ -331,6 +335,8 @@ function Practice({
 
   function toggle(optionIndex: number) {
     if (revealed) return;
+    const adding = !picked.includes(optionIndex) && (need === 1 || picked.length < need);
+    if (adding) playCue("select", soundOn);
     setPicked((prev) => {
       if (prev.includes(optionIndex)) return prev.filter((n) => n !== optionIndex);
       if (need === 1) return [optionIndex];
@@ -344,9 +350,17 @@ function Practice({
     const ok = sameSet(picked, question.answer);
     const nextStreak = ok ? streak + 1 : 0;
     const gained = ok ? pointsFor(nextStreak) : 0;
+    const chapterList = questionsIn(question.chapter);
+    const starsBefore = chapterStars(chapterList, useProgress.getState().stats);
+    const xpBefore = useProgress.getState().xp;
     record(question.id, ok);
     addScore(gained, nextStreak);
-    playCue(ok ? "correct" : "wrong", soundOn);
+    const starsAfter = chapterStars(chapterList, useProgress.getState().stats);
+    const rankedUp = rankOf(useProgress.getState().xp).current.xp !== rankOf(xpBefore).current.xp;
+    if (ok && nextStreak >= 2) playCue("combo", soundOn, nextStreak);
+    else playCue(ok ? "correct" : "wrong", soundOn);
+    if (starsAfter > starsBefore) window.setTimeout(() => playCue("star", soundOn), 240);
+    if (rankedUp) window.setTimeout(() => playCue("level", soundOn), 460);
     setStreak(nextStreak);
     setLastGain(gained);
     setRoundXp((value) => value + gained);
@@ -356,6 +370,7 @@ function Practice({
   }
 
   function next() {
+    playCue("advance", soundOn);
     setPicked([]);
     setRevealed(false);
     setIndex((value) => value + 1);
@@ -441,8 +456,12 @@ function MockExam({ onExit }: { onExit: () => void }) {
     });
     const passed = score >= PASS_MARK;
     const bonus = score * 8 + (passed ? 40 : 0);
+    const xpBefore = useProgress.getState().xp;
     playCue(passed ? "pass" : "fail", useProgress.getState().soundOn);
     addScore(bonus, 0);
+    if (rankOf(useProgress.getState().xp).current.xp !== rankOf(xpBefore).current.xp) {
+      window.setTimeout(() => playCue("level", useProgress.getState().soundOn), 520);
+    }
     addMock({
       at: Date.now(),
       score,
@@ -468,10 +487,20 @@ function MockExam({ onExit }: { onExit: () => void }) {
     return () => window.clearInterval(timer);
   }, [done, finish]);
 
+  useEffect(() => {
+    if (done || (seconds !== 60 && seconds !== 10)) return;
+    playCue("warn", useProgress.getState().soundOn);
+  }, [seconds, done]);
+
+  useEffect(() => {
+    playCue("start", useProgress.getState().soundOn);
+  }, []);
+
   const question = paper[index];
   if (!question) return null;
 
   function go(nextIndex: number) {
+    playCue("advance", useProgress.getState().soundOn);
     const nextAnswers = { ...answers, [question.id]: picked };
     setAnswers(nextAnswers);
     setIndex(nextIndex);
@@ -538,6 +567,8 @@ function MockExam({ onExit }: { onExit: () => void }) {
         picked={picked}
         revealed={false}
         onToggle={(optionIndex) => {
+          const adding = !picked.includes(optionIndex) && (need === 1 || picked.length < need);
+          if (adding) playCue("select", useProgress.getState().soundOn);
           setPicked((prev) => {
             if (prev.includes(optionIndex)) return prev.filter((n) => n !== optionIndex);
             if (need === 1) return [optionIndex];

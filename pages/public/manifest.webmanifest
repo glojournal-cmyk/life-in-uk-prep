@@ -1,0 +1,31 @@
+{
+  "name": "英國生活備考",
+  "short_name": "英國備考",
+  "description": "Life in the UK 測驗備考。題目已內置，進度留在這部手機。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#10151d",
+  "theme_color": "#10151d",
+  "lang": "zh-Hant",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

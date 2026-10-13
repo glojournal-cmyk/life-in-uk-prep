@@ -12,6 +12,8 @@ import {
   BookOpen,
   ChartColumn,
   Clock3,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import {
   CHAPTERS,
@@ -27,6 +29,7 @@ import {
   type Question,
 } from "@/data/questions";
 import { useProgress, type Lang } from "@/lib/progress-store";
+import { playCue } from "@/lib/sounds";
 
 type View =
   | { name: "home" }
@@ -82,9 +85,12 @@ function Home({ onOpen }: { onOpen: (view: View) => void }) {
     <main className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-5 py-6">
       <header className="flex flex-col gap-3">
         <p className="font-serif text-xs tracking-widest text-stamp">LIFE IN THE UK</p>
-        <div className="flex items-end justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-serif text-4xl leading-tight">英國生活備考</h1>
-          <LangSwitch lang={lang} onChange={setLang} />
+          <div className="flex items-center gap-2">
+            <SoundToggle />
+            <LangSwitch lang={lang} onChange={setLang} />
+          </div>
         </div>
         <p className="max-w-prose text-sm leading-6 text-muted">
           中文記重點，人名地名附英文。題目已內置，斷網仍可練習。進度只留在這部裝置。
@@ -249,6 +255,7 @@ function Practice({
   const [round, setRound] = useState<{ id: string; ok: boolean }[]>([]);
   const record = useProgress((s) => s.record);
   const lang = useProgress((s) => s.lang);
+  const soundOn = useProgress((s) => s.soundOn);
 
   if (questions.length === 0) {
     return (
@@ -294,6 +301,7 @@ function Practice({
     if (picked.length !== need) return;
     const ok = sameSet(picked, question.answer);
     record(question.id, ok);
+    playCue(ok ? "correct" : "wrong", soundOn);
     setRound((prev) => [...prev, { id: question.id, ok }]);
     setRevealed(true);
   }
@@ -375,6 +383,8 @@ function MockExam({ onExit }: { onExit: () => void }) {
       if (ok) score += 1;
       if (choice.length > 0) record(item.id, ok);
     });
+    const passed = score >= PASS_MARK;
+    playCue(passed ? "pass" : "fail", useProgress.getState().soundOn);
     addMock({
       at: Date.now(),
       score,
@@ -693,7 +703,10 @@ function QuizFrame({
           <span className="text-muted">{progress}</span>
         </div>
       </div>
-      <LangSwitch lang={lang} onChange={setLang} />
+      <div className="flex items-center justify-between gap-3">
+        <LangSwitch lang={lang} onChange={setLang} />
+        <SoundToggle />
+      </div>
       {children}
     </main>
   );
@@ -720,6 +733,26 @@ function TopBar({
       </button>
       <h1 className="font-serif text-xl">{title}</h1>
     </div>
+  );
+}
+
+function SoundToggle() {
+  const soundOn = useProgress((s) => s.soundOn);
+  const setSound = useProgress((s) => s.setSound);
+  return (
+    <button
+      type="button"
+      aria-label={soundOn ? "關閉音效" : "開啟音效"}
+      aria-pressed={soundOn}
+      onClick={() => {
+        const next = !soundOn;
+        setSound(next);
+        playCue("on", next);
+      }}
+      className="flex min-h-11 min-w-11 items-center justify-center rounded-full border border-line bg-card"
+    >
+      {soundOn ? <Volume2 className="size-4" aria-hidden="true" /> : <VolumeX className="size-4 text-muted" aria-hidden="true" />}
+    </button>
   );
 }
 

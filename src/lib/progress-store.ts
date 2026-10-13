@@ -14,10 +14,12 @@ export type MockResult = {
 
 type State = {
   lang: Lang;
+  soundOn: boolean;
   stats: Record<string, QStat>;
   wrongIds: string[];
   mocks: MockResult[];
   setLang: (lang: Lang) => void;
+  setSound: (soundOn: boolean) => void;
   record: (id: string, ok: boolean) => void;
   addMock: (result: MockResult) => void;
   reset: () => void;
@@ -25,6 +27,7 @@ type State = {
 
 const empty = {
   lang: "zh" as Lang,
+  soundOn: true,
   stats: {} as Record<string, QStat>,
   wrongIds: [] as string[],
   mocks: [] as MockResult[],
@@ -50,6 +53,7 @@ export const useProgress = create<State>()(
     (set) => ({
       ...empty,
       setLang: (lang) => set({ lang }),
+      setSound: (soundOn) => set({ soundOn }),
       record: (id, ok) =>
         set((state) => {
           const prev = state.stats[id] ?? { correct: 0, wrong: 0 };
@@ -68,7 +72,14 @@ export const useProgress = create<State>()(
           return { stats, wrongIds };
         }),
       addMock: (result) => set((state) => ({ mocks: [result, ...state.mocks].slice(0, 12) })),
-      reset: () => set((state) => ({ stats: {}, wrongIds: [], mocks: [], lang: state.lang })),
+      reset: () =>
+        set((state) => ({
+          stats: {},
+          wrongIds: [],
+          mocks: [],
+          lang: state.lang,
+          soundOn: state.soundOn,
+        })),
     }),
     {
       name: "lituk-progress-v1",

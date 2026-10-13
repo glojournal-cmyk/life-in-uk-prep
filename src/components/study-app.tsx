@@ -27,13 +27,14 @@ import {
   type ChapterId,
   type Question,
 } from "@/data/questions";
-import { useProgress, pointsFor, rankOf, type Lang } from "@/lib/progress-store";
+import { useProgress, pointsFor, rankOf, READY_RUNS, readyStreak, type Lang } from "@/lib/progress-store";
 import { playCue } from "@/lib/sounds";
 
 type View =
   | { name: "home" }
   | { name: "practice"; title: string; ids: string[] }
   | { name: "mock" }
+  | { name: "official" }
   | { name: "weak" };
 
 export function StudyApp() {
@@ -54,6 +55,9 @@ export function StudyApp() {
         />
       ) : null}
       {view.name === "mock" ? <MockExam onExit={() => setView({ name: "home" })} /> : null}
+      {view.name === "official" ? (
+        <MockExam official onExit={() => setView({ name: "home" })} />
+      ) : null}
       {view.name === "weak" ? (
         <Weakness
           onExit={() => setView({ name: "home" })}
@@ -72,6 +76,9 @@ function Home({ onOpen }: { onOpen: (view: View) => void }) {
   const reset = useProgress((s) => s.reset);
   const xp = useProgress((s) => s.xp);
   const bestStreak = useProgress((s) => s.bestStreak);
+  const officials = useProgress((s) => s.officials);
+  const examStreak = readyStreak(officials);
+  const ready = examStreak >= READY_RUNS;
   const [confirmReset, setConfirmReset] = useState(false);
   const rank = rankOf(xp);
   const rankSpan = rank.next ? rank.next.xp - rank.current.xp : 1;
@@ -141,6 +148,36 @@ function Home({ onOpen }: { onOpen: (view: View) => void }) {
           <span className="mt-1 block text-sm">24 題 · 45 分鐘 · 18 題合格</span>
         </span>
         <Clock3 aria-hidden="true" className="size-6" />
+      </button>
+
+      <button
+        type="button"
+        onClick={() => onOpen({ name: "official" })}
+        className={`panel flex min-h-11 flex-col gap-3 rounded-lg border px-4 py-4 text-left ${ready ? "border-ok" : "border-gold"}`}
+      >
+        <span className="flex items-start justify-between gap-3">
+          <span>
+            <span className="text-xs font-medium tracking-widest text-gold">正式試模式</span>
+            <span className="mt-1 block font-serif text-2xl">英文模擬</span>
+            <span className="mt-1 block text-sm text-muted">強制英文 · 24 題 · 45 分鐘 · 交卷先有解釋</span>
+          </span>
+          <span className={`rounded-full px-2 py-1 text-xs font-medium ${ready ? "bg-ok text-paper" : "bg-ink-soft text-gold"}`}>
+            {ready ? "可以去考" : `${Math.min(examStreak, READY_RUNS)}/${READY_RUNS}`}
+          </span>
+        </span>
+        <span className="flex gap-1.5" aria-label={`連續達標 ${Math.min(examStreak, READY_RUNS)} 次，需要 ${READY_RUNS} 次`}>
+          {Array.from({ length: READY_RUNS }, (_, index) => (
+            <span
+              key={index}
+              className={`h-1.5 flex-1 rounded-full ${index < examStreak ? "bg-ok" : "bg-ink-soft"}`}
+            />
+          ))}
+        </span>
+        <span className="text-xs text-muted">
+          {ready
+            ? "連續 5 次都有 21 分或以上。可以預約正式考試，記得帶同預約相同的證件。"
+            : "連續 5 次 21 分或以上，先解鎖「可以去考」。低過 21 分會由頭計。"}
+        </span>
       </button>
 
       <section className="flex flex-col gap-3">
@@ -419,7 +456,7 @@ function Practice({
   );
 }
 
-function MockExam({ onExit }: { onExit: () => void }) {
+function MockExam({ official = false, onExit }: { official?: boolean; onExit: () => void }) {
   const paper = useMemo(() => pickMock(), []);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number[]>>({});
@@ -429,8 +466,10 @@ function MockExam({ onExit }: { onExit: () => void }) {
   const [finalScore, setFinalScore] = useState(0);
   const record = useProgress((s) => s.record);
   const addMock = useProgress((s) => s.addMock);
+  const addOfficial = useProgress((s) => s.addOfficial);
   const addScore = useProgress((s) => s.addScore);
   const lang = useProgress((s) => s.lang);
+  const paperLang: Lang = official ? "en" : lang;
   const lock = useRef(false);
   const answersRef = useRef(answers);
   const pickedRef = useRef(picked);
@@ -454,7 +493,7 @@ function MockExam({ onExit }: { onExit: () => void }) {
       if (ok) score += 1;
       if (choice.length > 0) record(item.id, ok);
     });
-    const passed = score >= PASS_MARK;
+    const passed = official ? score >= 21 : score >= PASS_MARK;
     const bonus = score * 8 + (passed ? 40 : 0);
     const xpBefore = useProgress.getState().xp;
     playCue(passed ? "pass" : "fail", useProgress.getState().soundOn);
@@ -462,16 +501,24 @@ function MockExam({ onExit }: { onExit: () => void }) {
     if (rankOf(useProgress.getState().xp).current.xp !== rankOf(xpBefore).current.xp) {
       window.setTimeout(() => playCue("level", useProgress.getState().soundOn), 520);
     }
-    addMock({
+    const result = {
       at: Date.now(),
       score,
       total: paper.length,
-      passed: score >= PASS_MARK,
-    });
+      passed,
+    };
+    if (official) {
+      addOfficial(result);
+      if (readyStreak(useProgress.getState().officials) >= READY_RUNS) {
+        window.setTimeout(() => playCue("star", useProgress.getState().soundOn), 280);
+      }
+    } else {
+      addMock(result);
+    }
     setAnswers(finalAnswers);
     setFinalScore(score);
     setDone(true);
-  }, [addMock, addScore, paper, record]);
+  }, [addMock, addOfficial, addScore, official, paper, record]);
 
   useEffect(() => {
     if (done) return;
@@ -508,32 +555,53 @@ function MockExam({ onExit }: { onExit: () => void }) {
   }
 
   if (done) {
-    const passed = finalScore >= PASS_MARK;
+    const passed = official ? finalScore >= 21 : finalScore >= PASS_MARK;
+    const streak = readyStreak(useProgress.getState().officials);
+    const unlocked = official && streak >= READY_RUNS;
     return (
-      <Screen title="模擬考試" onExit={onExit}>
+      <Screen title={official ? "正式試" : "模擬考試"} onExit={onExit}>
         <section className={`panel rounded-lg border px-4 py-6 text-center ${passed ? "border-ok" : "border-stamp"}`}>
           <p className={`text-xs tracking-widest ${passed ? "text-ok" : "text-stamp"}`}>
-            {passed ? "合格" : "未合格"}
+            {official ? (passed ? "今次計入" : "今次中斷") : passed ? "合格" : "未合格"}
           </p>
           <p className="mt-2 font-serif text-5xl">
             {finalScore}
             <span className="text-2xl text-muted">/{paper.length}</span>
           </p>
-          <p className="mt-3 text-sm leading-6 text-muted">正式測驗 24 題要對 18 題（75%）。</p>
+          {official ? (
+            <p className="mt-3 text-sm leading-6 text-muted">
+              {unlocked
+                ? "連續 5 次都有 21 分或以上。可以去考。"
+                : passed
+                  ? `連續達標 ${Math.min(streak, READY_RUNS)}/${READY_RUNS}。低過 21 分會由頭計。`
+                  : "21 分先計入緩衝。今次由頭計。正式合格線仍然係 18 分。"}
+            </p>
+          ) : (
+            <p className="mt-3 text-sm leading-6 text-muted">正式測驗 24 題要對 18 題（75%）。</p>
+          )}
           <p className="mt-2 text-sm text-gold">
-            +{finalScore * 8 + ((finalScore >= PASS_MARK) ? 40 : 0)} 分
-            {finalScore >= PASS_MARK ? " · 合格獎勵" : ""}
+            +{finalScore * 8 + (passed ? 40 : 0)} 分
+            {passed ? " · 達標獎勵" : ""}
           </p>
         </section>
         <ol className="flex flex-col gap-3">
           {paper.map((item, itemIndex) => {
-            const ok = sameSet(answers[item.id] ?? [], item.answer);
+            const choice = answers[item.id] ?? [];
+            const ok = sameSet(choice, item.answer);
+            const label = (indexes: number[]) =>
+              indexes.length ? indexes.map((n) => item.options[n]?.en).filter(Boolean).join(" · ") : "未作答";
             return (
               <li key={item.id} className="panel rounded-lg border border-line p-3">
                 <p className={`text-xs font-medium ${ok ? "text-ok" : "text-stamp"}`}>
                   {itemIndex + 1}. {ok ? "正確" : "錯誤"}
                 </p>
-                <p className="mt-1 text-sm leading-6">{lang === "en" ? item.en : item.zh}</p>
+                <p className="mt-1 text-sm leading-6">{official || lang === "en" ? item.en : item.zh}</p>
+                {official ? (
+                  <>
+                    <p className="mt-2 text-sm leading-6">You chose: {label(choice)}</p>
+                    <p className="text-sm leading-6 text-ok">Answer: {label(item.answer)}</p>
+                  </>
+                ) : null}
                 <p className="mt-2 text-sm leading-6 text-muted">{item.explain}</p>
               </li>
             );
@@ -547,11 +615,12 @@ function MockExam({ onExit }: { onExit: () => void }) {
 
   return (
     <QuizFrame
-      title="模擬考試"
+      title={official ? "正式試" : "模擬考試"}
       progress={`${index + 1} / ${paper.length}`}
       ratio={(index + 1) / paper.length}
       onExit={onExit}
-      lang={lang}
+      lang={paperLang}
+      lockLang={official}
       extra={
         <span
           className={`rounded-full px-2 py-1 font-serif ${seconds < 60 ? "bg-stamp-soft text-stamp" : "bg-ink-soft text-gold"}`}
@@ -560,10 +629,14 @@ function MockExam({ onExit }: { onExit: () => void }) {
         </span>
       }
     >
-      <p className="text-xs text-muted">模擬卷交卷後才看解釋。可前後翻題，時間到會自動交卷。</p>
+      <p className="text-xs text-muted">
+        {official
+          ? "英文題，交卷前不會顯示解釋。21 分或以上先計入連續合格。"
+          : "模擬卷交卷後才看解釋。可前後翻題，時間到會自動交卷。"}
+      </p>
       <QuestionCard
         question={question}
-        lang={lang}
+        lang={paperLang}
         picked={picked}
         revealed={false}
         onToggle={(optionIndex) => {
@@ -802,6 +875,7 @@ function QuizFrame({
   ratio = 0,
   onExit,
   lang,
+  lockLang = false,
   extra,
   children,
 }: {
@@ -810,6 +884,7 @@ function QuizFrame({
   ratio?: number;
   onExit: () => void;
   lang: Lang;
+  lockLang?: boolean;
   extra?: ReactNode;
   children: ReactNode;
 }) {
@@ -827,7 +902,11 @@ function QuizFrame({
         <div className="h-full bg-gold" style={{ width: `${ratio > 0 ? Math.max(3, Math.round(ratio * 100)) : 0}%` }} />
       </div>
       <div className="flex items-center justify-between gap-3">
-        <LangSwitch lang={lang} onChange={setLang} />
+        {lockLang ? (
+          <span className="rounded-full bg-ink-soft px-2 py-1 text-xs text-gold">英文鎖定</span>
+        ) : (
+          <LangSwitch lang={lang} onChange={setLang} />
+        )}
         <SoundToggle />
       </div>
       {children}

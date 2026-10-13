@@ -18,6 +18,7 @@ type State = {
   stats: Record<string, QStat>;
   wrongIds: string[];
   mocks: MockResult[];
+  officials: MockResult[];
   xp: number;
   bestStreak: number;
   setLang: (lang: Lang) => void;
@@ -25,6 +26,7 @@ type State = {
   record: (id: string, ok: boolean) => void;
   addScore: (points: number, streak: number) => void;
   addMock: (result: MockResult) => void;
+  addOfficial: (result: MockResult) => void;
   reset: () => void;
 };
 
@@ -34,6 +36,7 @@ const empty = {
   stats: {} as Record<string, QStat>,
   wrongIds: [] as string[],
   mocks: [] as MockResult[],
+  officials: [] as MockResult[],
   xp: 0,
   bestStreak: 0,
 };
@@ -71,6 +74,18 @@ export function rankOf(xp: number) {
   return { current: RANKS[index], next: RANKS[index + 1] };
 }
 
+export const READY_MARK = 21;
+export const READY_RUNS = 5;
+
+export function readyStreak(results: MockResult[] | undefined) {
+  let count = 0;
+  for (const result of results ?? []) {
+    if (result.score < READY_MARK) break;
+    count += 1;
+  }
+  return count;
+}
+
 export function pointsFor(streak: number) {
   return 10 + Math.min(streak, 8) * 2;
 }
@@ -104,11 +119,14 @@ export const useProgress = create<State>()(
           bestStreak: Math.max(state.bestStreak ?? 0, streak),
         })),
       addMock: (result) => set((state) => ({ mocks: [result, ...state.mocks].slice(0, 12) })),
+      addOfficial: (result) =>
+        set((state) => ({ officials: [result, ...(state.officials ?? [])].slice(0, 12) })),
       reset: () =>
         set((state) => ({
           stats: {},
           wrongIds: [],
           mocks: [],
+          officials: [],
           xp: 0,
           bestStreak: 0,
           lang: state.lang,
